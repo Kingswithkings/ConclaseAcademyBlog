@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using ConclaseAcademyBlog.Models;
 using ConclaseAcademyBlog.IRepository;
+using System.Security.Claims;
+using System.Linq;
 
 namespace ConclaseAcademyBlog.Controllers.v1
 {
@@ -19,11 +21,12 @@ namespace ConclaseAcademyBlog.Controllers.v1
        // private readonly FirebaseStorage _storage;
         private readonly StorageClient _storageClient;
         private readonly IPostRepository _postRepository;
-
-        public BlogPostController(IPostRepository postRepository)
+        private readonly IUserRepository _userRepository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        public BlogPostController(IPostRepository postRepository, IHttpContextAccessor httpContextAccessor)
         {
             _postRepository = postRepository;
-             
+            _httpContextAccessor = httpContextAccessor;
             _storageClient = StorageClient.Create();
             //_storage = new FirebaseStorage("YOUR_STORAGE_BUCKET");
         }
@@ -33,6 +36,19 @@ namespace ConclaseAcademyBlog.Controllers.v1
         {
             try
             {
+                string userId = "";
+                var userIdClaim = _httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim != null) 
+                {
+                    userId = userIdClaim.Value; 
+                    //Now, you have the user's ID in the 'userId' variable
+                }
+                else
+                {
+                    //Handle the case where the user's ID claim is not found
+                    return BadRequest("User Not found");
+                }
+
                 if (blogPost.Text.Length>100)
                 {
                     return BadRequest("Text Length Greater Than 100");
@@ -42,7 +58,18 @@ namespace ConclaseAcademyBlog.Controllers.v1
                 {
                     return BadRequest("Images More Than 4");
                 }
-                var posts = _postRepository.GetAllPosts();
+
+                Func<Post, bool> isdateofposttoday = p => p.UserId == userId &&
+                                                          p.DateCreated == DateTime.Today &&
+                                                          p.DateCreated == DateTime.Today.AddHours(24);
+
+
+                var posts = _postRepository.GetPosts(isdateofposttoday);
+
+                if(posts.Count() >= 2) 
+                {
+                    return BadRequest("Maximum of 2 Posts exhausted for today. Please try again tomorrow");
+                }
 
                 List<string> Images = new List<string>();
                 List<string> Videos = new List<string>();

@@ -50,9 +50,9 @@ namespace ConclaseAcademyBlog.Repository
            
         }
 
-        public async Task<IEnumerable<Post>> GetPosts(Func<T, bool> predicate) 
+        public IEnumerable<Post> GetPosts(Func<Post, bool> predicate) 
         {
-            var posts = await _context.Posts.Where(predicate);
+            var posts = _context.Posts.Where(predicate);
             return posts;
         }
     }
