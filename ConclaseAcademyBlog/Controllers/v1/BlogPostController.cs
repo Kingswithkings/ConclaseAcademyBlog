@@ -17,8 +17,8 @@ namespace ConclaseAcademyBlog.Controllers.v1
     [ApiController]
     public class BlogPostController : ControllerBase
     {
-      
-       // private readonly FirebaseStorage _storage;
+
+        // private readonly FirebaseStorage _storage;
         private readonly StorageClient _storageClient;
         private readonly IPostRepository _postRepository;
         private readonly IUserRepository _userRepository;
@@ -30,7 +30,7 @@ namespace ConclaseAcademyBlog.Controllers.v1
             _storageClient = StorageClient.Create();
             //_storage = new FirebaseStorage("YOUR_STORAGE_BUCKET");
         }
-        [HttpPost("create/blogpost")]
+        [HttpPost("blogpost/create")]
         //Route("create/blogpost")
         public async Task<IActionResult> createblogpost(BlogPost blogPost)
         {
@@ -38,9 +38,9 @@ namespace ConclaseAcademyBlog.Controllers.v1
             {
                 string userId = "";
                 var userIdClaim = _httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier);
-                if (userIdClaim != null) 
+                if (userIdClaim != null)
                 {
-                    userId = userIdClaim.Value; 
+                    userId = userIdClaim.Value;
                     //Now, you have the user's ID in the 'userId' variable
                 }
                 else
@@ -49,12 +49,12 @@ namespace ConclaseAcademyBlog.Controllers.v1
                     return BadRequest("User Not found");
                 }
 
-                if (blogPost.Text.Length>100)
+                if (blogPost.Text.Length > 100)
                 {
                     return BadRequest("Text Length Greater Than 100");
                 }
 
-                if (blogPost.Images.Count>4)
+                if (blogPost.Images.Count > 4)
                 {
                     return BadRequest("Images More Than 4");
                 }
@@ -66,7 +66,7 @@ namespace ConclaseAcademyBlog.Controllers.v1
 
                 var posts = _postRepository.GetPosts(isdateofposttoday);
 
-                if(posts.Count() >= 2) 
+                if (posts.Count() >= 2)
                 {
                     return BadRequest("Maximum of 2 Posts exhausted for today. Please try again tomorrow");
                 }
@@ -108,7 +108,7 @@ namespace ConclaseAcademyBlog.Controllers.v1
                         memoryStream.Seek(0, SeekOrigin.Begin);
                         await _storageClient.UploadObjectAsync(bucketName, objectName, null, memoryStream);
 
-                      
+
                     }
 
                     // Return the Firebase Storage URL for the uploaded file
@@ -121,7 +121,7 @@ namespace ConclaseAcademyBlog.Controllers.v1
                 post.Text = blogPost.Text;
                 post.PostImages = (ICollection<PostImage>)Images;
                 post.PostVideos = (ICollection<PostVideo>)Videos;
- 
+
                 return Ok();
             }
             catch (Exception ex)
@@ -130,7 +130,51 @@ namespace ConclaseAcademyBlog.Controllers.v1
             }
         }
 
+        [HttpDelete("blogpost/delete")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            string userId = "";
+            var userIdClaim = _httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim != null)
+            {
+                userId = userIdClaim.Value;
+                //Now, you have the user's ID in the 'userId' variable
+            }
+            else
+            {
+                //Handle the case where the user's ID claim is not found
+                return BadRequest("User Not found");
+            }
+
+            var post = _postRepository.GetPostById(id);
+            if (post.UserId != userId)
+            {
+                return BadRequest("User Post Cannot Be Deleted");
+            }
+
+            _postRepository.DeletePost(post.Id);
+            return Ok("Post Sucessfully Deleted");
+
+
+
+        }
+
+        [HttpPost("blogpost/create-comment")]
+
+        public IActionResult CreateComment(CommentRequestDto commentRequestDto) 
+        {
+            var post = _postRepository.GetPostById(commentRequestDto.PostId);
+            if (post == null) 
+            {
+                return NotFound("Post Not Found");  
+            }
+            var comment = new PostComment { PostId = post.Id, Content = commentRequestDto.Content };
+         
+            post.PostComments.Add(comment);
+            _postRepository.UpdatePost(post);
             
-        
+                return Ok("Comment Created Sucessfully");
+        }
+
     }
-}
+}    
